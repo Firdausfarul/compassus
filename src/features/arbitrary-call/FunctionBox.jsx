@@ -123,6 +123,21 @@ function DecodedValue({ value, outputs, depth = 0 }) {
   )
 }
 
+// Convert value to wei based on unit
+function toWei(value, unit) {
+  if (!value || value === '') return 0n
+  const num = value.toString()
+  switch (unit) {
+    case 'eth':
+      return BigInt(Math.floor(parseFloat(num) * 1e18))
+    case 'gwei':
+      return BigInt(Math.floor(parseFloat(num) * 1e9))
+    case 'wei':
+    default:
+      return BigInt(num)
+  }
+}
+
 export function FunctionBox({ funcDef, contractAddress, wallet, onRemove }) {
   const [expanded, setExpanded] = useState(true)
   const [params, setParams] = useState({})
@@ -132,6 +147,8 @@ export function FunctionBox({ funcDef, contractAddress, wallet, onRemove }) {
   const [txHash, setTxHash] = useState(null)
   const [showReturnType, setShowReturnType] = useState(false)
   const [customReturnType, setCustomReturnType] = useState('')
+  const [sendValue, setSendValue] = useState('')
+  const [valueUnit, setValueUnit] = useState('wei')
 
   const selector = getFunctionSelector(funcDef)
   const isView = isViewFunction(funcDef)
@@ -168,9 +185,12 @@ export function FunctionBox({ funcDef, contractAddress, wallet, onRemove }) {
       const args = getArgs()
       const data = encodeCallData(funcDef, args)
 
+      const valueInWei = toWei(sendValue, valueUnit)
+
       const returnData = await wallet.publicClient.call({
         to: contractAddress,
-        data
+        data,
+        value: valueInWei
       })
 
       if (returnData.data) {
@@ -232,9 +252,12 @@ export function FunctionBox({ funcDef, contractAddress, wallet, onRemove }) {
       const args = getArgs()
       const data = encodeCallData(funcDef, args)
 
+      const valueInWei = toWei(sendValue, valueUnit)
+
       const hash = await wallet.walletClient.sendTransaction({
         to: contractAddress,
         data,
+        value: valueInWei,
         account: wallet.account
       })
 
@@ -302,6 +325,29 @@ export function FunctionBox({ funcDef, contractAddress, wallet, onRemove }) {
               ))}
             </div>
           )}
+
+          {/* Value Input */}
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-muted">Value (ETH to send)</span>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={sendValue}
+                onChange={(e) => setSendValue(e.target.value)}
+                placeholder="0"
+                className="flex-1 px-3 py-2 rounded-lg font-mono text-sm"
+              />
+              <select
+                value={valueUnit}
+                onChange={(e) => setValueUnit(e.target.value)}
+                className="px-3 py-2 rounded-lg text-sm bg-[var(--card)] border border-[var(--border)] cursor-pointer"
+              >
+                <option value="wei">wei</option>
+                <option value="gwei">gwei</option>
+                <option value="eth">ETH</option>
+              </select>
+            </div>
+          </div>
 
           {/* Return Type Override */}
           <div className="flex flex-col gap-2">
